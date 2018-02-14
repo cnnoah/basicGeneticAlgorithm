@@ -1,0 +1,347 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
+
+#define N 5   	 //population size 种群规模
+#define M 4	//gene number基因个数（M个基因组成一个染色体）
+
+int main(void)
+{	
+	int i,j;
+	//int t0;
+	//t是染色体被选中的下标；
+
+	double Cy0[N],Cy1[N];//
+
+	double C1[N][M]={{-2.1351,2.0917,-0.1327,-4.1006},{1.0152,-3.9811,-2.6638,3.7535},{4.0589,2.1904,-0.1503,0.0023},{-3.4098,-3.0714,-0.9008,-4.3712},{0.2073,2.9932,-4.0802,1.8794}};
+	//C1[N][M]是每个基因的初始化值
+	double C2[N][M], C3[N][M], C4[N][M];
+
+	//C2[N][M]是适应评价下的基因，规模为N*M
+	//C3[N][M]是交叉后的的基因，规模为N*M
+	//C4[N][M]是变异后的基因，规模为N*M－－－2018年1月20日改统计染色体变量的数组名称，未完，不适
+	//2018年1月23日 改二维数组,之前理解错误
+	
+	double re1,max;
+	//re1表示公式计算中的中间值
+	//max为初始条件下的最优解(最佳遗传染色体)
+	int maxi=0;
+	//maxi是初始条件下最优解对应的染色体编号
+
+	double crossp=0.88,rand4[N],t;
+	//crossp交配概率－常量, rand4是决定是否参与交配的随机值，t是交换用中间变量
+LOOP1:	int yes[N]={0},pos,k;
+	//yes存储是否交配的结果， pos为交配位置，k为交配处理的循环变量
+
+	double mutationp=0.001,rand5;
+	//mutationp是变异概率, rand5是变异处理时的随机值，将其与mutationp比较
+
+	//2018-02-02发现没有迭代处理！
+	//迭代处理已加
+
+	//发现“交配处理”偶尔有误---2018-02-02
+	//单步运行之后发现是迭代运算时，未修正yes[i]初始值，沿用上次结果导致
+	//已修正后的代码如下
+
+	//之前变异概率:mutationp=0.1过大？？---新的问题---2018-02-02
+	//修改变异概率:mutationp=0.01时，产生的问题是，若干次（约5-6次）之后，最大值约0.10左右，所有种群值相同？？？？？
+	//再修改变异概率为0.001
+	//如上的结果是每次迭代向最大值迈进的速率降低！！
+
+	//测试变异概率为0.15
+	//结果很快向max趋近，效果似乎比0.1要好？？
+
+	//考虑：终止迭代次数？？--to be continued 2018-02-02
+
+
+	//1－－－initialize the population初始化种群
+	printf("\n1---------initialization:\n");
+	
+
+	for(i=0;i<N;i++)
+	{
+		printf("C1[%d]: ",i+1);
+		for(j=0;j<M;j++)
+			printf("%.6lf ",C1[i][j]);
+		printf("\n");
+	}
+	
+	printf("\n");
+	
+
+	//2－－－fitness computation适应度计算
+	printf("2---------fitness:\n");
+	
+	//fitness value evaluation
+	for(i=0;i<N;i++)
+	{
+		re1=1;
+		for(j=0;j<M;j++)
+			re1=C1[i][j]*C1[i][j]+re1;
+		Cy0[i]=1.0/re1;
+	}
+	max=Cy0[0];
+	for(i=1;i<N;i++)
+		if(max<Cy0[i])
+		{
+			max=Cy0[i];
+			maxi=i;
+		}
+
+	printf("max=%.7lf, index=%d.\n\n",max,maxi+1);
+
+	printf("\n");
+
+
+	//3-----selection operator选择算子--->C2
+	printf("3---------selection--->C2:\n");
+	//reproduction也称复制操作
+	{
+		double psum=0,pratio[N], sumpratio[N];
+		//psum为种群适应值总和，pratio为各染色体与种群适应值总和之比
+		//sumpratio为轮盘模型的比例累计值
+		double randn[N];
+
+		int t;   //中间变量，存储需要修改的基因值行wf标
+
+		//计算种群适应度总和：
+		for(i=0;i<N;i++)
+		{
+			psum+=Cy0[i];			
+		}
+		printf("种群适应度总和:%.7lf\n",psum);
+
+		//计算每个染色体适应值同种群适应值总和的比：
+		for(i=0;i<N;i++)
+		{
+			pratio[i]=Cy0[i]/psum;
+		}
+		printf("每个染色体适应值同种群适应值总和的比:%.7lf\n",pratio);
+
+		//计算累计值
+		sumpratio[0]=pratio[0];
+		printf("累计值：\n%.5lf\n",sumpratio[0]);
+		for(i=1;i<N;i++)
+			//for(j=1;j<=i;j++)
+			{
+				sumpratio[i]=pratio[i]+sumpratio[i-1];
+				printf("%.7lf\n",sumpratio[i]);
+			}
+
+		//产生5个[0,1]之间的随机数
+		printf("random:");
+		srand((unsigned)time(NULL));		
+		for(i=0; i<N; i++)
+		{
+    		randn[i]=rand()/(double)(RAND_MAX);
+			printf("%.7lf ",randn[i]);
+		}
+		printf("\n");
+		
+		//复制-----2018-01-23
+		for (i=0; i<N; i++)
+			for(j=0;j<M;j++)
+			{
+				C2[i][j]=C1[i][j];
+			}
+
+		//每个随机值落哪个区间？
+		for(i=0;i<N;i++)
+		{
+			for(j=0;j<N-1;j++)
+			{
+				if(randn[i]>sumpratio[j]&&randn[i]<=sumpratio[j+1])
+				{
+					t=j+1;
+					//printf("randn[%d]=%.7lf--->%d.\n",i,randn[i],t+1);
+				}					
+				else if(randn[i]==sumpratio[j])
+				{
+					t=j;
+					//printf("randn[%d]=%.7lf--->%d.\n",i,randn[i],t+1);
+				}
+				else if(randn[i]<sumpratio[0])
+				{
+					t=0;
+					//printf("randn[%d]=%.7lf--->%d.\n",i,randn[i],t+1);
+				}
+			}
+			printf("randn[%d]=%.7lf--->%d.\n",i+1,randn[i],t+1);
+
+			//经过选择算子以后，得到的种群：
+			if(t!=i)
+			{
+				for(j=0;j<M;j++) 
+					C2[i][j]=C1[t][j];
+			}
+		}
+	
+		for(i=0;i<N;i++)
+		{
+			printf("C2[%d]: ",i+1);
+			for(j=0;j<M;j++)
+			{
+				printf("%.6lf ",C2[i][j]);
+			}
+			printf("\n");
+
+		}
+
+				
+	}
+	
+	//4-----crossover operator交配算子---->C3
+	printf("\n4---------crossover--->C3:\n");
+	//产生5个[0,1]之间的随机数，决定这5个染色体是否参加交配：
+
+	printf("random for the crossover yes or no:\n");
+
+	printf("the original yes:");
+	for(i=0;i<N;i++)
+	{		
+		printf("%d ",yes[i]);
+	}
+
+	srand((unsigned)time(NULL));
+	for(i=0; i<N; i++)
+	{
+    	rand4[i]=rand()/((double)(RAND_MAX));
+		printf("\nrand4[%d]=%.6lf:",i+1,rand4[i]);
+		if(rand4[i]<crossp)
+		{
+			yes[i]=1;
+			printf("参加交配");
+		}
+		else
+			printf("不参加交配");
+		//printf("%.6lf ",rand4[i]);
+	}
+	printf("\n");
+	printf("the modified yes:");
+	for(i=0;i<N;i++)
+	{		
+		printf("%d ",yes[i]);
+	}
+
+	printf("\n");
+	
+	//复制-----2018-02-01
+	for (i=0; i<N; i++)
+		for(j=0;j<M;j++)
+		{
+			C3[i][j]=C2[i][j];
+		}
+
+
+	//交配处理
+	srand(time(NULL));
+	for(i=0;i<N-1;i++)
+		for(j=i+1;j<N;j++)
+		{
+			if(yes[i]==0) 
+				break;
+			
+			else if(yes[i]==1&&yes[j]==1)//开始进行交叉处理
+			{			
+				pos=rand()%3+1;//随机生成交叉位置
+				printf("%d和%d参加交配，位置为:%d\n",i+1,j+1,pos);
+				for(k=pos;k<M;k++)
+				{
+					t=C3[i][k];
+					C3[i][k]=C3[j][k];
+					C3[j][k]=t;
+				}
+				i=j;
+				break;
+			}			
+		}
+
+	
+	//输出新生成的C3
+	for(i=0;i<N;i++)
+	{
+		printf("C3[%d]: ",i+1);
+		for(j=0;j<M;j++)
+			printf("%.6lf ",C3[i][j]);
+		printf("\n");
+	}
+
+	
+
+	//5-----Mutation operator变异算子
+	printf("\n5---------Mutation--->C4:\n");
+
+	//复制
+	for (i=0; i<N; i++)
+		for(j=0;j<M;j++)
+		{
+			C4[i][j]=C3[i][j];
+		}
+
+
+	printf("mutation possibililty is:%.7lf.\n",mutationp);
+	//变异处理并显示处理后的C4
+
+	srand((unsigned)time(NULL));
+	for(i=0;i<N;i++)
+	{
+		printf("C4[%d]:",i+1);
+		for(j=0;j<M;j++)
+		{
+			//产生[0,1]之间的随机数
+			
+			//printf("random:");
+			rand5=rand()/((double)(RAND_MAX));
+			//printf("%.7lf:",rand5);
+			//若随机值小于变异概率则进行变异处理
+   			if(rand5<mutationp)
+			{
+					C4[i][j]=rand()/((double)(RAND_MAX));
+			}
+				//printf("%.7lf ",randn[i]);
+
+			printf("%9.6lf::%9.6lf ",rand5,C4[i][j]);
+		}
+		printf("\n");
+
+	}
+
+	
+
+	//6-----重新评价，更新染色体
+	printf("\n6-------Evaluation+Update:\n");
+	
+	printf("new fitness value:\n");
+	for(i=0;i<N;i++)
+	{
+		re1=1;
+		for(j=0;j<M;j++)
+			re1=C4[i][j]*C4[i][j]+re1;
+		Cy1[i]=1.0/re1;
+		printf("Eval(C%d)=%9.6lf\n",i+1,Cy1[i]);
+	}
+
+	printf("\nupdate---:");
+	//复制
+	for (i=0; i<N; i++)
+		for(j=0;j<M;j++)
+		{
+			C1[i][j]=C4[i][j];
+		}
+
+	printf("\nnew generation:\n");
+	for (i=0; i<N; i++)
+	{
+		printf("C1[%d]:",i+1);
+		for(j=0;j<M;j++)
+			printf("%9.6lf ",C1[i][j]);
+		printf("\n");
+	}
+
+	goto LOOP1;
+	return 0;  
+}
+
+
+
+
